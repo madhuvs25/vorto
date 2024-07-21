@@ -10,9 +10,6 @@ class Location:
         self.x = x
         self.y = y
 
-    def __repr__(self):
-        return f"({self.x}, {self.y})"
-
 
 class Load:
     def __init__(self, load_id: int, pickup_location: Location, drop_off_location: Location):
@@ -20,17 +17,11 @@ class Load:
         self.pickup_location: Location = pickup_location
         self.drop_off_location: Location = drop_off_location
 
-    def __repr__(self):
-        return f"Load({self.id}, {self.pickup_location}, {self.drop_off_location})"
-
 
 class ClosestLoadPoint:
     def __init__(self, load_id: int, distance: float):
         self.load_id: int = load_id
         self.distance: float = distance
-
-    def __repr__(self):
-        return f"ClosestLoadPoint({self.load_id}, {self.distance})"
 
 
 class Driver:
@@ -40,63 +31,52 @@ class Driver:
         self.total_distance: float = 0.0
         self.current_location: Location = Location(0, 0)
 
-    def __repr__(self):
-        return f"Driver({self.driver_number}, {self.loads}, {self.total_distance}, {self.current_location})"
-
 
 class VRP:
-    def __init__(self):
+
+    def __init__(self, path: str):
         self.depot_location = Location(0, 0)
+        self.path = path
+        self.load_map: Dict[int, Load] = self.create_load_map()
+        self.nearest_pickup_points: Dict[int, List[ClosestLoadPoint]] = self.create_nearest_pickup_points()
+        self.unprocessed_loads: List[int] = list(self.load_map.keys())
+        self.processed_loads: List[int] = []
+        self.drivers_list: List[Driver] = []
 
-    def solve(self, path: str):
-        load_map: Dict[int, Load] = self.create_load_map(path)
-        nearest_pickup_points: Dict[int, List[ClosestLoadPoint]] = self.create_nearest_pickup_points(load_map)
+    def solve(self):
 
-        unprocessed_loads: List[int] = list(load_map.keys())
-        processed_loads: List[int] = []
-        drivers_list: List[Driver] = []
+        while self.unprocessed_loads:
+            driver: Driver = self.create_new_driver(len(self.drivers_list) + 1)
+            self.drivers_list.append(driver)
 
-        while unprocessed_loads:
-            driver: Driver = self.create_new_driver(len(drivers_list) + 1, nearest_pickup_points, load_map,
-                                                    processed_loads,
-                                                    unprocessed_loads)
-            drivers_list.append(driver)
+        number_of_drivers: int = len(self.drivers_list)
+        total_distance: float = sum(driver.total_distance for driver in self.drivers_list)
 
-        number_of_drivers: int = len(drivers_list)
-        total_distance: float = sum(driver.total_distance for driver in drivers_list)
-
-        for driver in drivers_list:
+        for driver in self.drivers_list:
             schedule_list = [load.id for load in driver.loads]
             print(schedule_list)
 
         total_cost: float = 500 * number_of_drivers + total_distance
 
-    def create_new_driver(self, driver_number: int, nearest_pickup_points: Dict[int, List[ClosestLoadPoint]],
-                          load_map: Dict[int, Load], processed_loads: List[int],
-                          unprocessed_loads: List[int]):
+    def create_new_driver(self, driver_number: int):
         driver: Driver = Driver(driver_number)
         load_list: List[Load] = []
-        self.add_route_schedule_for_driver(driver, nearest_pickup_points[0], nearest_pickup_points, processed_loads,
-                                           load_map, load_list, unprocessed_loads)
+        self.add_route_schedule_for_driver(driver, self.nearest_pickup_points[0], load_list)
         driver.loads = load_list
         driver.total_distance += self.calculate_euclidean_distance(driver.current_location, self.depot_location)
         return driver
 
     def add_route_schedule_for_driver(self, driver: Driver, nearest_pickup_to_origin: List[ClosestLoadPoint],
-                                      nearest_pickup_points: Dict[int, List[ClosestLoadPoint]],
-                                      processed_loads: List[int],
-                                      load_map: Dict[int, Load], load_list: List[Load],
-                                      unprocessed_loads: List[int]):
+                                      load_list: List[Load]):
         for i in nearest_pickup_to_origin:
             load_id: int = i.load_id
-            if load_id not in processed_loads:
-                load: Load = load_map[load_id]
+            if load_id not in self.processed_loads:
+                load: Load = self.load_map[load_id]
                 if self.check_feasibility(driver, load):
                     load_list.append(load)
-                    processed_loads.append(load_id)
-                    unprocessed_loads.remove(int(load_id))
-                    self.add_route_schedule_for_driver(driver, nearest_pickup_points[load_id], nearest_pickup_points,
-                                                       processed_loads, load_map, load_list, unprocessed_loads)
+                    self.processed_loads.append(load_id)
+                    self.unprocessed_loads.remove(int(load_id))
+                    self.add_route_schedule_for_driver(driver, self.nearest_pickup_points[load_id], load_list)
 
     def check_feasibility(self, driver: Driver, load: Load) -> bool:
         current_to_pickup: float = self.calculate_euclidean_distance(driver.current_location, load.pickup_location)
@@ -109,9 +89,9 @@ class VRP:
             return True
         return False
 
-    def create_load_map(self, path) -> Dict[int, Load]:
+    def create_load_map(self) -> Dict[int, Load]:
         load_map: Dict[int, Load] = {}
-        with open(path, 'r') as file:
+        with open(self.path, 'r') as file:
             for i, line in enumerate(file):
                 if i == 0:
                     continue
@@ -124,11 +104,11 @@ class VRP:
                 load_map[load_id] = Load(load_id, pickup_location, drop_off_location)
         return load_map
 
-    def create_nearest_pickup_points(self, load_map: Dict[int, Load]) -> Dict[int, List[ClosestLoadPoint]]:
+    def create_nearest_pickup_points(self) -> Dict[int, List[ClosestLoadPoint]]:
         queue = deque()
         queue.append(Load(0, Location(0, 0), Location(0, 0)))
 
-        for load in load_map.values():
+        for load in self.load_map.values():
             queue.append(load)
 
         nearest_pickup_points: Dict[int, List[ClosestLoadPoint]] = defaultdict(list)
@@ -137,7 +117,7 @@ class VRP:
             load_value: Load = queue.popleft()
             closest_pickup_loads_list: List[ClosestLoadPoint] = []
 
-            for load in load_map.values():
+            for load in self.load_map.values():
                 if load.id != load_value.id:
                     distance: float = self.calculate_euclidean_distance(load_value.drop_off_location,
                                                                         load.pickup_location)
@@ -157,5 +137,5 @@ if __name__ == '__main__':
     parser.add_argument('dest')
     args = parser.parse_args()
     file_path = args.dest
-    vrp = VRP()
-    vrp.solve(file_path)
+    vrp = VRP(file_path)
+    vrp.solve()
