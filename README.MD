@@ -4,25 +4,25 @@ The project has the following structure:
 
     pythonProject/ -
         ├── evaluateShared.py
-        ├── VRP.py
+        ├── vrp.py
         └── problem_set/
 
 - evaluateShared.py - This is the testing script shared by Vorto to run the solution script.
 In addition to the start code provided in this file, I added line 79 to exclude carriage returns while using readLine() function. 
 
-- VRP.py - Solution script for the VRP problem provided.
+- vrp.py - Solution script for the VRP problem provided.
 
 - problem_set - directory containing all the problem dataset.
 
 Execution Instructions:
 
-- To execute the solution file (VRP.py), run the following command :
-python evaluateShared.py --cmd "python VRP.py" --problemDir problem_set
+- To execute the solution file (vrp.py), run the following command :
+python evaluateShared.py --cmd "python vrp.py" --problemDir problem_set
 
 Testing:
 
 On running the following command:
-python evaluateShared.py --cmd "python VRP.py" --problemDir problem_set
+python evaluateShared.py --cmd "python vrp.py" --problemDir problem_set
 
 you should see the following output on the terminal console:
 
